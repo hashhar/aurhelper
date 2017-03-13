@@ -33,7 +33,7 @@ EOF
 	printf '%s\n' "$USAGE"
 }
 
-aurhelp()
+aurhelper()
 {
 	# Set up colours
 	colours
