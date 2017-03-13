@@ -1,0 +1,136 @@
+#!/bin/bash
+
+colours()
+{
+	NONE=$(tput sgr0)
+	EMR=$(tput bold)$(tput setaf 1)
+	EMG=$(tput bold)$(tput setaf 2)
+}
+
+usage() {
+	USAGE=$(cat << EOF
+USAGE:
+${EMG}aurhelp command package flags-for-makepkg${NONE}
+
+All arguments are compulsory.
+
+The package can be specified either as the package name in the AUR. It is used to generate the git URL using the pattern ${EMR}https://aur.archlinux.org/${EMG}\${package}${EMR}.git${NONE}.
+
+The available commands are:
+${EMG}install:${NONE}
+    Installs the package using the package name or the git clone URL.
+    e.g. ${EMR}aurhelp install neofetch -si, aurhelp install https://aur.archlinux.org/neofetch.git -s -r -i -c${NONE}
+
+${EMG}update:${NONE}
+    Updates the package if already installed. Fails if the package is not installed.
+    e.g. ${EMR}aurhelp update neofetch${NONE}
+
+${EMG}remove:${NONE}
+    Removes the package if installed. Fails otherwise. makepkg is not invoked.
+    e.g. ${EMR}aurhelp remove neofetch${NONE}
+EOF
+)
+	printf '%s\n' "$USAGE"
+}
+
+aurhelp()
+{
+	# Set up colours
+	colours
+	# Show usage if required number of arguments are not present.
+	if [[ $# -lt 2 ]]; then
+		usage
+	else
+		oldpwd="$(pwd)"
+		case $1 in
+			install )
+				shift
+				install "$@"
+				;;
+			update )
+				shift
+				update "$@"
+				;;
+			remove )
+				shift
+				remove "$@"
+				;;
+		esac
+	fi
+	if [[ "$(pwd)" != "$oldpwd" ]]; then
+		cd "$oldpwd"
+	fi
+}
+
+read-makepkg-config()
+{
+	xdg_config="${XDG_CONFIG_HOME:="~/.config"}/pacman/makepkg.conf"
+	local_config='~/.makepkg.conf'
+	global_config='/etc/makepkg.conf'
+	if [[ -e "$xdg_config" ]]; then
+		. "$xdg_config"
+	elif [[ -e "$local_config" ]]; then
+		. "$local_config"
+	else
+		. "$global_config"
+	fi
+	# If BUILDDIR, PKGDEST, SRCDEST, SRCPKGDEST, LOGDEST are unset, use the defaults specified in 'man makepkg.conf'.
+	if [[ -z "$BUILDDIR" ]]; then
+		BUILDDIR="./${package}"
+	fi
+	if [[ -z "$PKGDEST" ]]; then
+		PKGDEST="."
+	fi
+	if [[ -z "$SRCDEST" ]]; then
+		SRCDEST="."
+	fi
+	if [[ -z "$SRCPKGDEST" ]]; then
+		SRCPKGDEST="."
+	fi
+	if [[ -z "$LOGDEST" ]]; then
+		LOGDEST="."
+	fi
+}
+
+# read-choice prompt default-value
+read-choice()
+{
+	read -p "$1" -n 1 -s choice
+	printf "${choice:=$2}"
+}
+
+install()
+{
+	package=$1
+	shift
+	packageurl="https://aur.archlinux.org/${package}.git"
+	printf "Installing ${EMG}${package}${NONE} with arguments ${EMR}$*${NONE} from ${EMG}${packageurl}${NONE}\n"
+	read-makepkg-config
+	cd "$SRCDEST"
+	if [[ -d "$package" ]]; then
+		reply=$(read-choice "${EMR}It seems you have already cloned the package. Do you want to use the existing clone? ${EMG}[y]${NONE}/n " "y")
+		if [[ "$reply" == "y" ]]; then
+			cd "$package" \
+				&& makepkg $@
+		else
+			rm -rfv -- "$package" \
+				&& git clone "$packageurl" \
+				&& cd $package \
+				&& makepkg $@
+		fi
+	else
+		git clone "${packageurl}" \
+			&& cd $package \
+			&& makepkg $@
+	fi
+}
+
+update()
+{
+	echo "update $@"
+}
+
+remove()
+{
+	echo "remove $@"
+}
