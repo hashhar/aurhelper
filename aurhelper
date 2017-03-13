@@ -38,7 +38,7 @@ aurhelper()
 	# Set up colours
 	colours
 	# Show usage if required number of arguments are not present.
-	if [[ $# -lt 2 ]]; then
+	if [[ $# -lt 3 ]]; then
 		usage
 	else
 		oldpwd="$(pwd)"
@@ -134,3 +134,5 @@ remove()
 {
 	echo "remove $@"
 }
+
+aurhelper "$@"
