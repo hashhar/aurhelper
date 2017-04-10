@@ -127,12 +127,40 @@ install()
 
 update()
 {
-	echo "update $@"
+	package=$1
+	shift
+	packageurl="https://aur.archlinux.org/${package}.git"
+	read-makepkg-config
+	cd "$SRCDEST"
+	res=$(pacman -Qq "$package")
+	# Pacman returns package name if package is installed.
+	if [[ "$res" != "$package" ]]; then
+		reply=$(read-choice "${EMR}It seems that you don't have that package installed. Do you want to install it? ${EMG}[y]${NONE}/n " "y")
+		if [[ "$reply" == "y" ]]; then
+			install "$package" "$*"
+		fi
+	else
+		printf "Updating ${EMG}${package}${NONE} with arguments ${EMG}$*${NONE} from ${EMG}${packageurl}${NONE}\n"
+		cd "$package" \
+			&& git pull \
+			&& makepkg $@
+	fi
 }
 
 remove()
 {
-	echo "remove $@"
+	package=$1
+	shift
+	read-makepkg-config
+	cd "$SRCDEST"
+	res$(pacman -Qq "$package")
+	# Pacman returns package name if package is installed.
+	if [[ "$res" != "$package" ]]; then
+		printf "${EMG}${package}${NONE} is not installed.\n"
+	else
+		sudo pacman -Rs "$package" \
+			&& rm -rf "$package"
+	fi
 }
 
 aurhelper "$@"
